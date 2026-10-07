@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Monitora_DG — períodos ON (preview local)</title>
+<style>
+html,body{margin:0;min-height:100%;background:#202328;color:#eee;font-family:Inter,Arial,sans-serif}
+body{padding:20px;box-sizing:border-box}
+.preview-header{margin:0 0 10px;font-size:13px;color:#c8ccd1}
+#widget{width:min(100%,560px);height:560px;margin:auto;resize:vertical;overflow:auto;border-radius:8px}
+.preview-tools{margin:14px 0 0;font-size:12px;color:#c8ccd1;text-align:center}
+.preview-tools button{font:inherit;margin:0 4px;padding:5px 10px;border-radius:6px;border:1px solid #4a4e55;background:#34383f;color:#e5e7ea;cursor:pointer}
+.preview-tools button:hover{background:#3d424a}
+</style>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="preview-header">Monitora_DG — períodos ON (preview local, dados simulados)</div>
+<div id="widget"></div>
+
+<div class="preview-tools">
+    <button id="btnOn" type="button">Simular transição ON (rede)</button>
+    <button id="btnOff" type="button">Simular transição OFF (rede)</button>
+</div>
+
+<script>
+const container = document.getElementById('widget');
+window.container = container;
+
+const H = 3600000;
+const MIN = 60000;
+const ID = '7e62cc00-c0df-11f1-8ef7-dd61fc2d324e';
+
+// Meia-noite local de hoje.
+const t0 = (() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); })();
+
+// Séries históricas simuladas (mesmo formato de /values/timeseries).
+// rede_disponivel reproduz o exemplo do enunciado:
+//   anteontem e ontem ON o dia inteiro;
+//   hoje 00:00-08:33, 09:11-12:23 e 13:02-15:59.
+const seriesByKey = {
+    rede_disponivel: [
+        { ts: t0 - 48 * H, value: '1' },
+        { ts: t0 + 8 * H + 33 * MIN, value: '0' },
+        { ts: t0 + 9 * H + 11 * MIN, value: '1' },
+        { ts: t0 + 12 * H + 23 * MIN, value: '0' },
+        { ts: t0 + 13 * H + 2 * MIN, value: '1' },
+        { ts: t0 + 15 * H + 59 * MIN, value: '0' }
+    ],
+    alimentacao_rede: [
+        { ts: t0 - 24 * H, value: '1' },
+        { ts: t0 - 20 * H, value: '0' },
+        { ts: t0 + 7 * H, value: '1' },
+        { ts: t0 + 9 * H, value: '0' }
+    ],
+    alimentacao_offgrid: [
+        { ts: t0 - 26 * H, value: '1' },
+        { ts: t0 - 20 * H, value: '0' },
+        { ts: t0 + 10 * H, value: '1' },
+        { ts: t0 + 11 * H + 30 * MIN, value: '0' }
+    ],
+    alimentacao_gerador: [
+        { ts: t0 - 48 * H, value: '1' },
+        { ts: t0 - 44 * H, value: '0' },
+        { ts: t0 - 2 * H, value: '1' }
+    ]
+};
+
+function keyFromUrl(url) {
+    const m = /keys=([^&]+)/.exec(url);
+    return m ? decodeURIComponent(m[1]) : null;
+}
+
+let liveOnDataUpdated = null;
+
+const ctx = {
+    http: {
+        get: url => ({
+            subscribe: ok => {
+                const k = keyFromUrl(url);
+                ok(k ? { [k]: seriesByKey[k] || [] } : {});
+                return { unsubscribe() {} };
+            }
+        })
+    },
+    subscriptionApi: {
+        createSubscription: options => ({
+            subscribe: fn => {
+                if (options && options.callbacks) {
+                    liveOnDataUpdated = options.callbacks.onDataUpdated;
+                }
+                fn({ id: 'preview-live', data: [] });
+                return { unsubscribe() {} };
+            }
+        })
+    },
+    registerDestroyCallback: fn => { window.addEventListener('beforeunload', fn); }
+};
+
+// Simula uma transição ao vivo do estado rede_disponivel.
+function pushLive(ts, value) {
+    if (typeof liveOnDataUpdated !== 'function') { return; }
+    liveOnDataUpdated({
+        data: [{
+            dataKey: { name: 'rede_disponivel', type: 'timeseries' },
+            datasource: { entityFilter: { singleEntity: { id: ID } } },
+            data: [[ts, value]]
+        }]
+    });
+}
+
+document.getElementById('btnOn').addEventListener('click', () => pushLive(Date.now(), '1'));
+document.getElementById('btnOff').addEventListener('click', () => pushLive(Date.now(), '0'));
+
+fetch('index.html')
+    .then(r => r.text())
+    .then(html => {
+        container.innerHTML = html;
+        const s = document.createElement('script');
+        s.src = 'script.js';
+        document.body.appendChild(s);
+    });
+</script>
+</body>
+</html>

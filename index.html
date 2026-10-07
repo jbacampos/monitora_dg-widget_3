@@ -1,0 +1,32 @@
+<div class="card">
+    <div class="title">PERÍODOS ON</div>
+
+    <div class="controls">
+        <div id="statePicker" class="state-picker" role="tablist" aria-label="Estado analisado">
+            <button type="button" class="state-btn" data-index="0" title="Rede disponível" aria-label="Rede disponível"><i class="st-dot st-green"></i></button>
+            <button type="button" class="state-btn" data-index="1" title="Alimentação pela rede" aria-label="Alimentação pela rede"><i class="st-dot st-blue"></i></button>
+            <button type="button" class="state-btn" data-index="2" title="Alimentação pelo offgrid" aria-label="Alimentação pelo offgrid"><i class="st-dot st-yellow"></i></button>
+            <button type="button" class="state-btn" data-index="3" title="Alimentação pelo gerador" aria-label="Alimentação pelo gerador"><i class="st-dot st-red"></i></button>
+        </div>
+
+        <select id="periodSelect" class="period-select" aria-label="Período analisado">
+            <option value="hoje">Hoje</option>
+            <option value="ontem">Ontem</option>
+            <option value="ultimos3dias" selected>Últimos 3 dias</option>
+            <option value="ultimos7dias">Últimos 7 dias</option>
+            <option value="estasemana">Esta semana</option>
+            <option value="semanapassada">Semana passada</option>
+            <option value="estemes">Este mês</option>
+            <option value="mespassado">Mês passado</option>
+            <option value="esteano">Este ano</option>
+            <option value="anopassado">Ano passado</option>
+            <option value="desdeoinicio">Desde o início</option>
+        </select>
+    </div>
+
+    <div id="periods" class="periods">
+        <div class="periods-empty">Carregando...</div>
+    </div>
+
+    <div id="grandTotal" class="grand-total"></div>
+</div>

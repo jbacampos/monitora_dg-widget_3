@@ -1,0 +1,4 @@
+.vscode/
+*.log
+*.zip
+_env.txt

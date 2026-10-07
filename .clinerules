@@ -1,0 +1,43 @@
+# Monitora_DG — Widget PERÍODOS ON — Regras do projeto
+
+Este projeto reproduz localmente um widget HTML Container do ThingsBoard.
+
+Arquivos principais:
+- index.html — estrutura HTML do widget
+- style.css — CSS do widget
+- script.js — JavaScript do widget
+- preview.html — ambiente local de testes
+
+REGRAS IMPORTANTES
+
+1. Não modificar arquivos sem que isso seja necessário para a solicitação atual.
+
+2. Não alterar simultaneamente HTML, CSS e JavaScript quando a alteração puder ser feita em apenas um deles.
+
+3. Antes de modificar qualquer arquivo, explicar:
+   - qual é o problema identificado;
+   - qual arquivo será alterado;
+   - quais linhas/trechos serão alterados;
+   - por que a alteração resolve o problema.
+
+4. Preservar todo comportamento que já funciona.
+
+5. Não refatorar, reorganizar ou "melhorar" código que não esteja relacionado à solicitação.
+
+6. Fazer uma alteração por vez.
+
+7. Depois da alteração, executar/testar o preview local sempre que possível.
+
+8. Se o teste revelar outro problema, não corrigi-lo automaticamente. Informar o problema antes de fazer uma nova alteração.
+
+9. Nunca substituir uma solução existente por outra sem explicar a razão.
+
+10. O código deve continuar compatível com o HTML Container do ThingsBoard.
+
+11. preview.html é apenas um ambiente de testes. Não usar alterações feitas exclusivamente para o simulador para modificar o comportamento do widget real.
+
+12. Antes de qualquer alteração importante, verificar o estado do Git e manter a possibilidade de retornar ao último estado funcional.
+
+OBJETIVO
+
+O objetivo é fazer alterações pequenas, controladas e verificáveis no widget, preservando o funcionamento existente.
