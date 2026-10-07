@@ -127,7 +127,7 @@
 
 .p-row {
     display: grid;
-    grid-template-columns: 58px 1fr 66px;
+    grid-template-columns: 58px 1fr 84px;
     align-items: center;
     column-gap: 8px;
     padding: 2px 2px;
@@ -251,7 +251,7 @@
     }
 
     .p-row {
-        grid-template-columns: 52px 1fr 58px;
+        grid-template-columns: 52px 1fr 74px;
         column-gap: 6px;
     }
 

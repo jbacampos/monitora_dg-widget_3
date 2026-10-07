@@ -168,6 +168,34 @@ function groupFormat() {
 }
 
 // ============================================================
+// (N) Durações no formato do widget 2
+// ============================================================
+function groupWidget2Format() {
+    console.log("\n== (N) Durações no formato do widget 2 ==");
+
+    // Poucos segundos.
+    check("w2 7s", formatWidget2Duration(7 * 1000), "7s");
+    check("w2 24s", formatWidget2Duration(24 * 1000), "24s");
+
+    // Minutos (sem horas).
+    check("w2 27m (0:27)", formatWidget2Duration(27 * 60000), "27m");
+    check("w2 59m", formatWidget2Duration(59 * 60000), "59m");
+
+    // Horas + minutos (segundos zerados: sem sufixo "0s").
+    check("w2 6h6 (6:06)", formatWidget2Duration((6 * 60 + 6) * 60000), "6h 6m");
+    check("w2 13h48 (13:48)", formatWidget2Duration((13 * 60 + 48) * 60000), "13h 48m");
+    check("w2 22h00", formatWidget2Duration(22 * 3600000), "22h 0m");
+
+    // Horas + minutos + segundos (mesma regra do widget 2).
+    check("w2 1h 6m 22s", formatWidget2Duration((1 * 3600 + 6 * 60 + 22) * 1000), "1h 6m 22s");
+    check("w2 4h 59m 50s", formatWidget2Duration((4 * 3600 + 59 * 60 + 50) * 1000), "4h 59m 50s");
+    check("w2 16m 38s", formatWidget2Duration((16 * 60 + 38) * 1000), "16m 38s");
+
+    // Zero.
+    check("w2 0", formatWidget2Duration(0), "0s");
+}
+
+// ============================================================
 // (B) Janelas de período
 // ============================================================
 function groupWindows() {
@@ -253,10 +281,10 @@ function groupDays() {
     check("dias: mais recente", iso(days[0].dayStart), "2026-10-07T00:00:00.000Z");
     check("dia 07: segmento", ivStr(days[0].segments[0]),
         "2026-10-07T00:00:00.000Z .. 2026-10-07T03:00:00.000Z");
-    check("dia 07: total", formatDuration(days[0].totalMs), "3:00");
+    check("dia 07: total", formatWidget2Duration(days[0].totalMs), "3h 0m");
     check("dia 06: segmento", ivStr(days[1].segments[0]),
         "2026-10-06T23:00:00.000Z .. 2026-10-07T00:00:00.000Z");
-    check("dia 06: total", formatDuration(days[1].totalMs), "1:00");
+    check("dia 06: total", formatWidget2Duration(days[1].totalMs), "1h 0m");
 
     // Múltiplos períodos no mesmo dia.
     const d2 = splitByDay([
@@ -267,7 +295,7 @@ function groupDays() {
     check("mesmo dia: qtd periodos", String(d2[0].segments.length), "2");
     check("mesmo dia: ordem desc", ivStr(d2[0].segments[0]),
         "2026-10-07T13:02:00.000Z .. 2026-10-07T15:59:00.000Z");
-    check("mesmo dia: total", formatDuration(d2[0].totalMs), "6:09");
+    check("mesmo dia: total", formatWidget2Duration(d2[0].totalMs), "6h 9m");
 }
 
 // ============================================================
@@ -340,19 +368,19 @@ function groupRenderDay() {
     check("G: qtd dias", String(g.length), "3");
     check("G: dia 07 data", g[0][0].date, "07/10");
     check("G: dia 07 periodo (agora)", g[0][0].range, "09:00 - agora");
-    check("G: dia 07 duracao", g[0][0].val, "11:35");
-    check("G: dia 07 total", g[0][1].val, "11:35");
+    check("G: dia 07 duracao", g[0][0].val, "11h 35m");
+    check("G: dia 07 total", g[0][1].val, "11h 35m");
 
     check("G: dia 06 data (1a linha)", g[1][0].date, "06/10");
     check("G: dia 06 periodo 1", g[1][0].range, "09:11 - 12:23");
-    check("G: dia 06 dur 1", g[1][0].val, "3:12");
+    check("G: dia 06 dur 1", g[1][0].val, "3h 12m");
     check("G: dia 06 periodo 2", g[1][1].range, "00:00 - 02:00");
     check("G: dia 06 sem data na 2a linha", g[1][1].date, "");
-    check("G: dia 06 total", g[1][2].val, "5:12");
+    check("G: dia 06 total", g[1][2].val, "5h 12m");
 
     check("G: dia 05 data", g[2][0].date, "05/10");
     check("G: dia 05 fim meia-noite", g[2][0].range, "12:00 - 24:00");
-    check("G: dia 05 total", g[2][2].val, "22:00");
+    check("G: dia 05 total", g[2][2].val, "22h 0m");
 
     check("G: total geral", elements["grandTotal"].innerHTML,
         'Total: <span id="live-total-on">38:47</span> / <span id="live-total-dur">68:35</span> = <span id="live-pct">56,5%</span>');
@@ -366,15 +394,16 @@ function groupTimer() {
     check("timer: um setInterval", String(setIntervalCount), "1");
     check("timer: intervalo 1000ms", String(intervalDelay), "1000");
 
-    // Durações têm resolução de minuto: 1s não muda o texto; 60s sim.
+    // A duração da janela (total geral) tem resolução de minuto:
+    // 1s não muda o texto; 60s sim.
     fakeNow += 1000;
     if (intervalFns[0]) { intervalFns[0](); }
     check("timer: 1s nao muda (minuto)", elements["live-total-dur"].textContent, "68:35");
 
     fakeNow += 59000;
     if (intervalFns[0]) { intervalFns[0](); }
-    check("timer: duracao viva", elements["live-seg-dur"].textContent, "11:36");
-    check("timer: total do dia vivo", elements["live-day-tot"].textContent, "11:36");
+    check("timer: duracao viva", elements["live-seg-dur"].textContent, "11h 36m");
+    check("timer: total do dia vivo", elements["live-day-tot"].textContent, "11h 36m");
     check("timer: total ON vivo", elements["live-total-on"].textContent, "38:48");
     check("timer: duracao da janela", elements["live-total-dur"].textContent, "68:36");
     check("timer: percentual vivo", elements["live-pct"].textContent, "56,6%");
@@ -417,8 +446,8 @@ function groupSwitch() {
         check("switch: qtd dias", String(g.length), "1");
         check("switch: data", g[0][0].date, "06/10");
         check("switch: periodo", g[0][0].range, "08:00 - 10:30");
-        check("switch: duracao", g[0][0].val, "2:30");
-        check("switch: total do dia", g[0][1].val, "2:30");
+        check("switch: duracao", g[0][0].val, "2h 30m");
+        check("switch: total do dia", g[0][1].val, "2h 30m");
         check("switch: total geral", elements["grandTotal"].innerHTML,
             'Total: <span id="live-total-on">2:30</span> / <span id="live-total-dur">68:35</span> = <span id="live-pct">3,6%</span>');
     });
@@ -459,6 +488,7 @@ async function main() {
     await settle();              // carga inicial: rede_disponivel / últimos 3 dias
 
     groupFormat();
+    groupWidget2Format();
     groupWindows();
     groupIntervals();
     groupDays();

@@ -69,6 +69,42 @@ function formatDuration(ms) {
     return hours + ":" + pad2(minutes);
 }
 
+// Duração no formato do widget 2 — HISTÓRICO DE TRANSIÇÕES
+// (24s / 16m 38s / 1h 6m 22s / 4h 59m 50s), porém sem o sufixo "0s"
+// quando o valor cai em minuto cheio (13:48 -> "13h 48m", 0:27 -> "27m").
+// Usada nas linhas dos períodos individuais E nas totalizações diárias.
+// O total geral no rodapé e as totalizações mensais continuam usando
+// formatDuration/formatMonthTotal (formato acumulado "H:MM").
+function formatWidget2Duration(ms) {
+    const total = Math.max(0, Math.floor(ms / 1000));
+    const days = Math.floor(total / 86400);
+    const hours = Math.floor((total % 86400) / 3600);
+    const minutes = Math.floor((total % 3600) / 60);
+    const seconds = total % 60;
+
+    let out = "";
+
+    if (days > 0) {
+        out += days + "d ";
+    }
+
+    if (days > 0 || hours > 0) {
+        out += hours + "h ";
+    }
+
+    if (days > 0 || hours > 0 || minutes > 0) {
+        out += minutes + "m ";
+    }
+
+    // Segundos aparecem apenas quando existem (regra do widget 2 para o
+    // caso com segundos); em minuto cheio o sufixo "0s" é omitido.
+    if (seconds > 0 || out === "") {
+        out += seconds + "s";
+    }
+
+    return out.replace(/\s+$/, "");
+}
+
 // Horário HH:MM (24h) a partir de um timestamp local.
 function formatClockMin(ts) {
     const d = new Date(ts);
@@ -574,7 +610,7 @@ function renderCurrent() {
                     "</span>" +
                     '<span class="p-dur"' +
                     (isOngoing ? ' id="live-seg-dur"' : "") +
-                    ">" + formatDuration(seg[1] - seg[0]) + "</span>" +
+                    ">" + formatWidget2Duration(seg[1] - seg[0]) + "</span>" +
                     "</div>";
             });
 
@@ -589,7 +625,7 @@ function renderCurrent() {
                 '<span class="p-range"></span>' +
                 '<span class="p-val"' +
                 (isOngoingDay ? ' id="live-day-tot"' : "") +
-                ">" + formatDuration(day.totalMs) + "</span>" +
+                ">" + formatWidget2Duration(day.totalMs) + "</span>" +
                 "</div>";
 
             bodyHtml += "</div>";
@@ -694,12 +730,12 @@ function tick() {
         const dayEl = container.querySelector("#live-day-tot");
 
         if (segEl) {
-            segEl.textContent = formatDuration(segMs);
+            segEl.textContent = formatWidget2Duration(segMs);
         }
 
         if (dayEl) {
             dayEl.textContent =
-                formatDuration(current.dayBaselineMs + segMs);
+                formatWidget2Duration(current.dayBaselineMs + segMs);
         }
     }
 
