@@ -42,6 +42,15 @@ const seriesByKey = {
         { ts: D("2025-12-16T00:00:00Z"), value: "0" },
         { ts: D("2026-02-01T00:00:00Z"), value: "1" },
         { ts: D("2026-02-01T12:00:00Z"), value: "0" }
+    ],
+    // Reinícios (reboot_reason). Códigos: 1 Power On, 7 RESET, 5 /reboot,
+    // 4 Watchdog de software, 2 Watchdog de hardware.
+    reboot_reason: [
+        { ts: D("2026-10-05T00:00:00Z"), value: "1" },
+        { ts: D("2026-10-06T08:51:00Z"), value: "7" },
+        { ts: D("2026-10-06T15:26:00Z"), value: "5" },
+        { ts: D("2026-10-07T06:20:00Z"), value: "4" },
+        { ts: D("2026-10-07T09:00:00Z"), value: "2" }
     ]
 };
 
@@ -358,6 +367,20 @@ function readMonthRows() {
     return rows;
 }
 
+// Linhas do modo Power on: DATA | HORA | MOTIVO.
+const RB_ROW_RE = /class="p-row rb-row"><span class="p-date">([^<]*)<\/span><span class="p-range">([^<]*)<\/span><span class="rb-reason">([^<]*)<\/span>/g;
+
+function readRebootRows() {
+    const h = elements["periods"].innerHTML;
+    const rows = [];
+    let m;
+    RB_ROW_RE.lastIndex = 0;
+    while ((m = RB_ROW_RE.exec(h))) {
+        rows.push({ date: m[1], time: m[2], reason: m[3] });
+    }
+    return rows;
+}
+
 // ============================================================
 // (G) Render no modo dia (Últimos 3 dias)
 // ============================================================
@@ -482,6 +505,127 @@ function groupSince() {
 }
 
 // ============================================================
+// (P) Power on / reinícios (quinto indicador)
+// ============================================================
+function groupReboot() {
+    console.log("\n== (P) Power on / reinícios ==");
+
+    // Código -> descrição (tabela do widget = rebootReasonDescription()
+    // do programa Monitora_DG, include/types.h).
+    check("rb 1", rebootReasonLabel(1), "Energização");
+    check("rb 2", rebootReasonLabel(2), "Watchdog de hardware");
+    check("rb 3", rebootReasonLabel(3), "Exceção de software");
+    check("rb 4", rebootReasonLabel(4), "Watchdog de software");
+    check("rb 5", rebootReasonLabel(5), "Reinício (/reboot)");
+    check("rb 6", rebootReasonLabel(6), "Retorno de deep sleep");
+    check("rb 7", rebootReasonLabel(7), "Reset externo");
+    check("rb 8", rebootReasonLabel(8), "Desconhecido");
+    check("rb 9", rebootReasonLabel(9), "Atualização (/ota)");
+    check("rb desconhecido", rebootReasonLabel(99), "Desconhecido");
+
+    elements["periodSelect"].value = "ultimos3dias";
+    setupControls();
+
+    const intervalsBefore = setIntervalCount;
+    selectState(4); // Power on
+
+    return settle().then(function () {
+        const rows = readRebootRows();
+        check("power: qtd linhas", String(rows.length), "5");
+        check("power: 1a data", rows[0].date, "07/10");
+        check("power: 1a hora", rows[0].time, "09:00");
+        check("power: 1a motivo", rows[0].reason, "Watchdog de hardware");
+        check("power: 2a sem data", rows[1].date, "");
+        check("power: 2a hora", rows[1].time, "06:20");
+        check("power: 2a motivo", rows[1].reason, "Watchdog de software");
+        check("power: 3a data", rows[2].date, "06/10");
+        check("power: 3a hora", rows[2].time, "15:26");
+        check("power: 3a motivo", rows[2].reason, "Reinício (/reboot)");
+        check("power: 4a sem data", rows[3].date, "");
+        check("power: 4a hora", rows[3].time, "08:51");
+        check("power: 4a motivo", rows[3].reason, "Reset externo");
+        check("power: 5a data", rows[4].date, "05/10");
+        check("power: 5a hora", rows[4].time, "00:00");
+        check("power: 5a motivo", rows[4].reason, "Energização");
+        check("power: sem total geral", elements["grandTotal"].innerHTML, "");
+        check("power: sem timer novo", String(setIntervalCount), String(intervalsBefore));
+        return null;
+    }).then(function () {
+        elements["periodSelect"].value = "hoje";
+        setupControls();
+        selectState(4);
+        return settle();
+    }).then(function () {
+        const rows = readRebootRows();
+        check("power hoje: qtd", String(rows.length), "2");
+        check("power hoje: 1a hora", rows[0].time, "09:00");
+        check("power hoje: 2a hora", rows[1].time, "06:20");
+        return null;
+    }).then(function () {
+        elements["periodSelect"].value = "ontem";
+        setupControls();
+        selectState(4);
+        return settle();
+    }).then(function () {
+        const rows = readRebootRows();
+        check("power ontem: qtd", String(rows.length), "2");
+        check("power ontem: 1a hora", rows[0].time, "15:26");
+        check("power ontem: 2a hora", rows[1].time, "08:51");
+        return null;
+    }).then(function () {
+        elements["periodSelect"].value = "mespassado";
+        setupControls();
+        selectState(4);
+        return settle();
+    }).then(function () {
+        checkTrue("power mes passado: sem reinicios",
+            elements["periods"].innerHTML.indexOf("Nenhum reinício") !== -1);
+        check("power mes passado: sem total", elements["grandTotal"].innerHTML, "");
+        return null;
+    }).then(function () {
+        // Desde o início: cada reboot individual, sem agrupar por mês.
+        elements["periodSelect"].value = "desdeoinicio";
+        setupControls();
+        selectState(4);
+        return settle();
+    }).then(function () {
+        const rows = readRebootRows();
+        check("power desde: qtd", String(rows.length), "5");
+        check("power desde: 1a data", rows[0].date, "07/10");
+        check("power desde: ultima data", rows[4].date, "05/10");
+        check("power desde: sem total", elements["grandTotal"].innerHTML, "");
+        return null;
+    }).then(function () {
+        elements["periodSelect"].value = "ultimos3dias";
+        setupControls();
+        selectState(4);
+        return settle();
+    }).then(function () {
+        // Evento ao vivo pela subscription (sem novo request).
+        const httpBefore = httpCalls;
+        onDataUpdated({ data: [{
+            dataKey: { name: "reboot_reason", type: "timeseries" },
+            datasource: { entityFilter: { singleEntity: { id: ID } } },
+            data: [[D("2026-10-07T20:35:00Z"), "9"]]
+        }] });
+        const rows = readRebootRows();
+        check("power live: qtd", String(rows.length), "6");
+        check("power live: 1a hora", rows[0].time, "20:35");
+        check("power live: 1a motivo", rows[0].reason, "Atualização (/ota)");
+        check("power live: sem novo http", String(httpCalls), String(httpBefore));
+        return null;
+    }).then(function () {
+        // Volta aos modos normais (regressão).
+        selectState(0);
+        return settle();
+    }).then(function () {
+        checkTrue("power->normal: render de periodos",
+            elements["periods"].innerHTML.indexOf("p-group") !== -1);
+        return null;
+    });
+}
+
+// ============================================================
 // Execução
 // ============================================================
 async function main() {
@@ -499,6 +643,7 @@ async function main() {
     groupLive();
     await groupSwitch();
     await groupSince();
+    await groupReboot();
 
     console.log("\n== (M) Destroy ==");
     const clearBefore = clearIntervalCount;

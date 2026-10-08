@@ -54,6 +54,44 @@ permaneceu ON** dentro de um período selecionado, com **totalização por dia**
     Horários dos períodos: `HH:MM`; fim na meia-noite → `24:00`; fim em
     andamento → `agora`.
 
+## Modo Power on / reinícios (quinto indicador)
+
+Além dos quatro estados, o cabeçalho tem um **quinto indicador** (símbolo
+Power em SVG inline, círculo vermelho, sem emoji) que alterna o widget para o
+modo **Power on**. Nesse modo a tabela lista o **histórico de reinícios**
+(fonte: telemetria `reboot_reason`; o timestamp do ponto é o instante do
+reboot), com as colunas **DATA | HORA | MOTIVO**, do mais recente para o mais
+antigo, com a data apenas na primeira linha de cada dia e a hora em `HH:mm`.
+
+- Não há períodos ON, totalização diária, total geral nem percentual neste modo.
+- O seletor de período é o mesmo. Para as janelas curtas (Hoje…Mês passado) os
+  reinícios são agrupados por dia; para Este ano / Ano passado / Desde o início
+  cada reinício aparece individualmente (sem agrupar por mês).
+- Sem polling de 1 s: novos `reboot_reason` chegam pela subscription já
+  existente e a lista é redesenhada (sem novo request).
+- Clicar em qualquer um dos quatro estados volta aos modos normais.
+
+Códigos de `reboot_reason` (estáveis, definidos pelo firmware) → descrição.
+Os textos são **os mesmos do programa Monitora_DG**
+(`include/types.h` → `rebootReasonDescription()`), a única fonte da descrição do
+motivo — assim o `MOTIVO` exibido aqui é idêntico ao da notificação de boot no
+Telegram e ao da linha `BOOT DIAG` do Serial:
+
+| código | descrição |
+|---|---|
+| 1 | Energização |
+| 2 | Watchdog de hardware |
+| 3 | Exceção de software |
+| 4 | Watchdog de software |
+| 5 | Reinício (/reboot) |
+| 6 | Retorno de deep sleep |
+| 7 | Reset externo |
+| 8 | Desconhecido |
+| 9 | Atualização (/ota) |
+
+Um código desconhecido aparece como `Desconhecido` (o registro nunca é
+descartado).
+
 ## Arquivos
 
 - `index.html` — título, indicadores de estado, seletor de período, tabela e total geral.

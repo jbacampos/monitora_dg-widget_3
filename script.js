@@ -35,6 +35,40 @@ const MAX_PAGES = 60;
 const MONTHS = ["jan", "fev", "mar", "abr", "mai", "jun",
     "jul", "ago", "set", "out", "nov", "dez"];
 
+// Quinto indicador: "Power on / reinícios". O índice logo após os quatro
+// estados seleciona a lista de reinícios. A fonte é a telemetria
+// reboot_reason (código numérico estável definido pelo firmware).
+const REBOOT_KEY = "reboot_reason";
+const POWER_INDEX = STATE_KEYS.length;
+
+// Código estável -> descrição em português. NÃO alterar os códigos.
+// Os textos são exatamente os do programa Monitora_DG
+// (include/types.h -> rebootReasonDescription()), a única fonte da
+// descrição do motivo: assim o MOTIVO exibido aqui é idêntico ao da
+// notificação de boot no Telegram e ao da linha de diagnóstico Serial.
+const REBOOT_REASONS = {
+    1: "Energização",
+    2: "Watchdog de hardware",
+    3: "Exceção de software",
+    4: "Watchdog de software",
+    5: "Reinício (/reboot)",
+    6: "Retorno de deep sleep",
+    7: "Reset externo",
+    8: "Desconhecido",
+    9: "Atualização (/ota)"
+};
+
+function isPowerMode() {
+    return selectedIndex === POWER_INDEX;
+}
+
+// Código numérico -> descrição. Código desconhecido nunca é descartado:
+// aparece como "Desconhecido".
+function rebootReasonLabel(code) {
+    const n = Number(code);
+    return REBOOT_REASONS[n] || REBOOT_REASONS[8];
+}
+
 // Estado de execução do widget.
 let selectedIndex = 0;
 let selectedPeriod = "ultimos3dias";
@@ -553,7 +587,70 @@ function renderMessage(text) {
 
 // Reconstrói e desenha a tabela + total geral a partir de `current`.
 // Guarda em `current` as bases para a atualização viva local.
+function renderRebootCurrent() {
+    const periodsEl = container.querySelector("#periods");
+    const totalEl = container.querySelector("#grandTotal");
+
+    if (!periodsEl || !current) {
+        return;
+    }
+
+    const winStart = current.winStart;
+    const winEnd = current.liveEnd ? Date.now() : current.winEnd;
+
+    const list = current.points
+        .filter(function (p) {
+            return p.ts >= winStart && p.ts <= winEnd;
+        })
+        .slice()
+        .sort(function (a, b) {
+            return b.ts - a.ts;
+        });
+
+    let html = "";
+
+    if (!list.length) {
+        html = '<div class="periods-empty">Nenhum reinício no intervalo selecionado.</div>';
+    } else {
+        let lastDay = null;
+
+        list.forEach(function (p) {
+            const day = startOfDay(p.ts);
+            const showDate = day !== lastDay;
+            lastDay = day;
+
+            html +=
+                '<div class="p-row rb-row">' +
+                '<span class="p-date">' +
+                (showDate ? formatDayLabel(p.ts) : "") +
+                "</span>" +
+                '<span class="p-range">' +
+                formatClockMin(p.ts) +
+                "</span>" +
+                '<span class="rb-reason">' +
+                rebootReasonLabel(p.value) +
+                "</span>" +
+                "</div>";
+        });
+    }
+
+    periodsEl.innerHTML = html;
+
+    // Power on não tem totalização nem percentual.
+    if (totalEl) {
+        totalEl.innerHTML = "";
+    }
+
+    // Sem timer: a lista de reinícios só muda quando chega um novo evento.
+    stopTimer();
+}
+
 function renderCurrent() {
+    if (current && current.power) {
+        renderRebootCurrent();
+        return;
+    }
+
     const periodsEl = container.querySelector("#periods");
     const totalEl = container.querySelector("#grandTotal");
 
@@ -712,7 +809,7 @@ function renderCurrent() {
 // ============================================================
 
 function tick() {
-    if (!current) {
+    if (!current || current.power) {
         return;
     }
 
@@ -808,6 +905,33 @@ function handleLive(data) {
 
     const item = findLiveItem(data || [], current.key);
 
+    // Modo Power on: cada novo reboot_reason é acrescentado à lista e
+    // redesenha (sem novo request, sem timer).
+    if (current.power) {
+        if (!item || !item.data || !item.data.length) {
+            return;
+        }
+
+        const p = item.data[item.data.length - 1];
+        const pts = Number(p[0]);
+
+        if (!Number.isFinite(pts)) {
+            return;
+        }
+
+        const lastPower = current.points.length
+            ? current.points[current.points.length - 1]
+            : null;
+
+        if (lastPower && pts <= lastPower.ts) {
+            return;
+        }
+
+        current.points.push({ ts: pts, value: p[1] });
+        renderCurrent();
+        return;
+    }
+
     if (!item || !item.data || !item.data.length) {
         return;
     }
@@ -854,7 +978,9 @@ function startLiveSubscription() {
 
             dataKeys: STATE_KEYS.map(function (state) {
                 return { type: "timeseries", name: state.key, settings: {} };
-            })
+            }).concat([
+                { type: "timeseries", name: REBOOT_KEY, settings: {} }
+            ])
         }],
 
         callbacks: {
@@ -896,7 +1022,7 @@ function updatePickerVisual() {
 }
 
 function selectState(index) {
-    if (index < 0 || index >= STATE_KEYS.length) {
+    if (index < 0 || index > POWER_INDEX) {
         return;
     }
 
@@ -943,6 +1069,7 @@ function beginRender(cfg) {
         winEnd: cfg.winEnd,
         liveEnd: !!cfg.liveEnd,
         mode: cfg.mode,
+        power: !!cfg.power,
         os: null,
         segStart: null,
         monthGrowStart: null,
@@ -954,12 +1081,58 @@ function beginRender(cfg) {
     renderCurrent();
 }
 
+function reloadReboots(spec, now) {
+    function onError(error) {
+        console.error("Monitora_DG reinícios:", error);
+        renderMessage("Não foi possível carregar o histórico.");
+    }
+
+    if (spec.desdeInicio) {
+        fetchSeries(REBOOT_KEY, 0, spec.end)
+            .then(function (points) {
+                const sorted = dedupeSortAsc(points);
+
+                beginRender({
+                    power: true,
+                    key: REBOOT_KEY,
+                    points: sorted,
+                    winStart: sorted.length ? sorted[0].ts : spec.end,
+                    winEnd: spec.end,
+                    liveEnd: spec.liveEnd,
+                    mode: spec.mode
+                });
+            })
+            .catch(onError);
+        return;
+    }
+
+    fetchSeries(REBOOT_KEY, spec.start, spec.end)
+        .then(function (points) {
+            beginRender({
+                power: true,
+                key: REBOOT_KEY,
+                points: dedupeSortAsc(points),
+                winStart: spec.start,
+                winEnd: spec.end,
+                liveEnd: spec.liveEnd,
+                mode: spec.mode
+            });
+        })
+        .catch(onError);
+}
+
 function reload() {
     stopTimer();
     renderMessage("Carregando...");
 
     const now = Date.now();
     const spec = computeWindow(selectedPeriod, now);
+
+    if (isPowerMode()) {
+        reloadReboots(spec, now);
+        return;
+    }
+
     const key = STATE_KEYS[selectedIndex].key;
 
     function onError(error) {

@@ -89,6 +89,22 @@
 .st-dot.st-red    { background: #ef4444; }
 .st-dot.st-off    { background: #686B70; }
 
+/* Quinto indicador: Power on / reinícios. Círculo vermelho (família do
+   gerador) com o símbolo universal de Power, branco, em SVG inline. */
+.st-dot.st-power {
+    background: #ef4444;
+    color: #ffffff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.st-dot.st-power svg {
+    width: 62%;
+    height: 62%;
+    display: block;
+}
+
 .state-btn .st-dot {
     width: 18px;
     height: 18px;
@@ -173,6 +189,21 @@
     padding-top: 2px;
 }
 
+/* Modo Power on: DATA | HORA | MOTIVO. Reusa a estrutura de .p-row
+   (mesmas três colunas), apenas com larguras adequadas ao motivo. */
+.p-row.rb-row {
+    grid-template-columns: 52px 58px 1fr;
+}
+
+.rb-reason {
+    font-size: 13px;
+    line-height: 18px;
+    color: #e5e7ea;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 /* Totalização mensal (Este ano / Ano passado / Desde o início). */
 .m-row {
     display: grid;
@@ -255,6 +286,10 @@
         column-gap: 6px;
     }
 
+    .p-row.rb-row {
+        grid-template-columns: 48px 52px 1fr;
+    }
+
     .m-row {
         grid-template-columns: 1fr 58px;
         column-gap: 6px;
@@ -264,6 +299,7 @@
     .p-range,
     .p-dur,
     .p-sum .p-val,
+    .rb-reason,
     .m-label,
     .m-val,
     .grand-total {

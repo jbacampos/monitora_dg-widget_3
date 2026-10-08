@@ -22,6 +22,7 @@ body{padding:20px;box-sizing:border-box}
 <div class="preview-tools">
     <button id="btnOn" type="button">Simular transição ON (rede)</button>
     <button id="btnOff" type="button">Simular transição OFF (rede)</button>
+    <button id="btnReboot" type="button">Simular reboot (OTA)</button>
 </div>
 
 <script>
@@ -64,6 +65,17 @@ const seriesByKey = {
         { ts: t0 - 48 * H, value: '1' },
         { ts: t0 - 44 * H, value: '0' },
         { ts: t0 - 2 * H, value: '1' }
+    ],
+    // Reinícios (reboot_reason): Energização, Reset externo, Reinício
+    // (/reboot), Watchdog e Atualização (/ota). Textos iguais aos do
+    // programa Monitora_DG.
+    reboot_reason: [
+        { ts: t0 - 48 * H, value: '1' },                     // anteontem 00:00 - Energização
+        { ts: t0 - 24 * H + 8 * H + 51 * MIN, value: '7' },  // ontem 08:51 - Reset externo
+        { ts: t0 - 24 * H + 15 * H + 26 * MIN, value: '5' }, // ontem 15:26 - Reinício (/reboot)
+        { ts: t0 + 6 * H + 20 * MIN, value: '4' },           // hoje 06:20 - Watchdog de software
+        { ts: t0 + 9 * H, value: '2' },                      // hoje 09:00 - Watchdog de hardware
+        { ts: t0 + 10 * H + 5 * MIN, value: '9' }            // hoje 10:05 - Atualização (/ota)
     ]
 };
 
@@ -112,6 +124,20 @@ function pushLive(ts, value) {
 
 document.getElementById('btnOn').addEventListener('click', () => pushLive(Date.now(), '1'));
 document.getElementById('btnOff').addEventListener('click', () => pushLive(Date.now(), '0'));
+
+// Simula um reinício ao vivo (reboot_reason) para o quinto botão.
+function pushLiveReboot(ts, code) {
+    if (typeof liveOnDataUpdated !== 'function') { return; }
+    liveOnDataUpdated({
+        data: [{
+            dataKey: { name: 'reboot_reason', type: 'timeseries' },
+            datasource: { entityFilter: { singleEntity: { id: ID } } },
+            data: [[ts, code]]
+        }]
+    });
+}
+
+document.getElementById('btnReboot').addEventListener('click', () => pushLiveReboot(Date.now(), '9'));
 
 fetch('index.html')
     .then(r => r.text())
